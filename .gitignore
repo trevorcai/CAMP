@@ -1,0 +1,10 @@
+# Java class files
+*.class
+*.jar
+
+# IntelliJ Files
+.idea/
+camp.iml
+
+# Vim swap files
+.*.swp
