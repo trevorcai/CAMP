@@ -82,13 +82,38 @@ public class DoublyLinkedList<E> {
 }
 
 /* Struct-like construction of Nodes within List */
-class ListNode<T> {
+class ListNode<T> implements Comparable<ListNode<T>> {
     public T value;
+    private int ordering;
     ListNode<T> prev, next;
 
     public ListNode(T value) {
+        this(value, 0);
+    }
+
+    public ListNode(T value, int ordering) {
         this.value = value;
+        this.ordering = ordering;
         this.prev = null;
         this.next = null;
+    }
+
+    public int getOrdering() {
+        return ordering;
+    }
+
+    public void setOrdering(int ordering) {
+        this.ordering = ordering;
+    }
+
+    @Override
+    public int compareTo(ListNode<T> other) {
+        if (this.ordering < other.ordering) {
+            return -1;
+        } else if (this.ordering == other.ordering){
+            return 0;
+        } else {
+            return 1;
+        }
     }
 }
