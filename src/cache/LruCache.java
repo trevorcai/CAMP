@@ -42,18 +42,17 @@ public class LruCache implements Cache {
     @Override
     public void put(String key, String value, int cost, int size) {
         lock.lock();
-        load += size;
-        // Evict if necessary
-        while(load > capacity) {
-            evict();
-        }
-
         // If we already contain a key, remove the previous value from queue
         // and adjust the size usage
         MapNode prevValue = data.get(key);
         if (prevValue != null) {
             load -= prevValue.getSize();
             lruQueue.remove(prevValue.node);
+        }
+
+        load += size;
+        while(load > capacity) {
+            evict();
         }
 
         ListNode<String> listNode = new ListNode<>(key);

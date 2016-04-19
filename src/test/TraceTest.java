@@ -10,14 +10,15 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class TraceTest {
     private final Cache c;
     private final String fileName;
     private AtomicLong totalCost, missCost, totalAttempt, missAttempt;
-    public final ExecutorService pool;
+    private final ExecutorService pool;
+
+    private long startTime, endTime;
 
     public TraceTest(Cache c, String fileName, int numThreads) {
         this.c = c;
@@ -30,6 +31,7 @@ public class TraceTest {
     }
 
     public void run() {
+        startTime = System.nanoTime();
         try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -50,8 +52,19 @@ public class TraceTest {
     public void printResults() {
         double missRatio = missAttempt.doubleValue() / totalAttempt.longValue();
         double costMissRatio = missCost.doubleValue() / totalCost.longValue();
+        float timeElapsed = (endTime - startTime) / 1000;
+        System.out.println("Time Elapsed: " + timeElapsed + "us");
         System.out.println("Miss ratio: " + missRatio);
         System.out.println("Cost-Miss ratio: " + costMissRatio);
+    }
+
+    public void await() {
+        try {
+            pool.awaitTermination(120L, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        endTime = System.nanoTime();
     }
 
     private class Request implements Runnable {
@@ -80,16 +93,11 @@ public class TraceTest {
 
     public static void main(String[] args) {
         int numCores = Integer.parseInt(args[0]);
-        System.out.println(numCores);
-        System.out.println(args[1]);
         Cache cache = new CampCache(200000000);
         TraceTest test = new TraceTest(cache, args[1], numCores);
+        System.out.println("Starting test...");
         test.run();
-        try {
-            test.pool.awaitTermination(120L, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        test.await();
         test.printResults();
     }
 }
