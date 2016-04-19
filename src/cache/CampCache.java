@@ -62,11 +62,11 @@ public class CampCache implements Cache {
     Places an element into the cache with unit cost/size ratio
      */
     public void put(String key, String value) {
-        put(key, value, value.length());
+        put(key, value, value.length(), value.length());
     }
 
     @Override
-    public void put(String key, String value, int cost) {
+    public void put(String key, String value, int cost, int size) {
         lock.lock();
         // Evict if necessary
         while(load > capacity) {
@@ -79,7 +79,7 @@ public class CampCache implements Cache {
         remove(prevValue);
 
         ListNode<String> listNode = new ListNode<>(key);
-        MapNode node = new MapNode(value, cost, listNode);
+        MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
         push(node);
         lock.unlock();

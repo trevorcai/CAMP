@@ -36,13 +36,13 @@ public class LruCache implements Cache {
     Places an element into the cache with unit cost/size ratio
      */
     public void put(String key, String value) {
-        put(key, value, value.length());
+        put(key, value, value.length(), value.length());
     }
 
     @Override
-    public void put(String key, String value, int cost) {
+    public void put(String key, String value, int cost, int size) {
         lock.lock();
-        load += value.length();
+        load += size;
         // Evict if necessary
         while(load > capacity) {
             evict();
@@ -57,7 +57,7 @@ public class LruCache implements Cache {
         }
 
         ListNode<String> listNode = new ListNode<>(key);
-        MapNode node = new MapNode(value, cost, listNode);
+        MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
         lruQueue.pushTail(listNode);
         lock.unlock();
