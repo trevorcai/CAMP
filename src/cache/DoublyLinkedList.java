@@ -86,6 +86,7 @@ class ListNode<T> implements Comparable<ListNode<T>> {
     public T value;
     private int ordering;
     ListNode<T> prev, next;
+    private boolean evicted = false;
 
     public ListNode(T value) {
         this(value, 0);
@@ -115,5 +116,13 @@ class ListNode<T> implements Comparable<ListNode<T>> {
         } else {
             return 1;
         }
+    }
+
+    public boolean isEvicted() {
+        return evicted;
+    }
+
+    public void setEvicted() {
+        evicted = true;
     }
 }
