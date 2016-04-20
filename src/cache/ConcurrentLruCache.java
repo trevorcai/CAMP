@@ -13,22 +13,24 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ConcurrentLruCache implements Cache {
     static final int DRAIN_THRESHOLD = 40;
 
+    /** Information-storing data structures */
     private final Map<String, MapNode> data;
     private final DoublyLinkedList<String> lruQueue = new DoublyLinkedList<>();
 
-    /** Buffers and their counters */
-    private final ConcurrentLinkedQueue<Action> buffer;
-    private AtomicInteger bufSize = new AtomicInteger(0);
-
+    /** Lock controlling access to the above lruQueue */
     private final Lock lock = new ReentrantLock();
 
+    /** Amount of data currently in cache versus what's allowed */
     private final int capacity;
-    /** Amount of data currently in Cache */
     private AtomicInteger load = new AtomicInteger(0);
+
+    /** Buffer and its counter */
+    private final ConcurrentLinkedQueue<Action> buffer;
+    private AtomicInteger bufSize = new AtomicInteger(0);
+    /** Tracks the status of the drain */
     private boolean isActive = false;
     private final AtomicBoolean isEager = new AtomicBoolean(false);
-
-    /** Tracks the status of the drain */
+    /** Pool on which to run the drain thread */
     private final ExecutorService pool;
 
     public ConcurrentLruCache(int capacity) {
