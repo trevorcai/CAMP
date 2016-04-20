@@ -45,7 +45,7 @@ public class CampCache implements Cache {
     }
 
     @Override
-    public String getIfPresent(String key) {
+    public String get(String key) {
         lock.lock();
         MapNode result = data.get(key);
         refresh(result);
@@ -58,31 +58,27 @@ public class CampCache implements Cache {
         }
     }
 
-    /*
-    Places an element into the cache with unit cost/size ratio
-     */
-    public void put(String key, String value) {
-        put(key, value, value.length(), value.length());
-    }
-
     @Override
-    public void put(String key, String value, int cost, int size) {
+    public boolean putIfAbsent(String key, String value, int cost, int size) {
         lock.lock();
+        // If we already contain a key, remove the previous value from queue
+        // and adjust the size usage
+        if (data.containsKey(key)) {
+            lock.unlock();
+            return false;
+        }
         // Evict if necessary
         while(load > capacity) {
             evict();
         }
-
-        // If we already contain a key, remove the previous value from queue
-        // and adjust the size usage
-        MapNode prevValue = data.get(key);
-        remove(prevValue);
 
         ListNode<String> listNode = new ListNode<>(key);
         MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
         push(node);
         lock.unlock();
+
+        return true;
     }
 
     private void evict() {
@@ -145,23 +141,6 @@ public class CampCache implements Cache {
         // NOTE: wasEmpty implies wasHead. This could be simplified
         if (wasHead && wasEmpty) {
             heap.offer(lruQueues[index].peekHead());
-        }
-    }
-
-    private void remove(MapNode node) {
-        if (node == null)
-            return;
-
-        load -= node.getSize();
-        int index = calculatePriority(node.cost, node.getSize());
-        DoublyLinkedList<String> queue = lruQueues[index];
-        boolean wasHead = queue.isHead(node.node);
-        queue.remove(node.node);
-        if (wasHead) {
-            heap.remove(node.node);
-            if (!queue.isEmpty()) {
-                heap.offer(queue.peekHead());
-            }
         }
     }
 

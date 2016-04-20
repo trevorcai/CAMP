@@ -20,7 +20,7 @@ public class LruCache implements Cache {
     }
 
     @Override
-    public String getIfPresent(String key) {
+    public String get(String key) {
         lock.lock();
         MapNode result = data.get(key);
         String value = null;
@@ -36,18 +36,16 @@ public class LruCache implements Cache {
     Places an element into the cache with unit cost/size ratio
      */
     public void put(String key, String value) {
-        put(key, value, value.length(), value.length());
+        putIfAbsent(key, value, value.length(), value.length());
     }
 
     @Override
-    public void put(String key, String value, int cost, int size) {
+    public boolean putIfAbsent(String key, String value, int cost, int size) {
         lock.lock();
-        // If we already contain a key, remove the previous value from queue
-        // and adjust the size usage
-        MapNode prevValue = data.get(key);
-        if (prevValue != null) {
-            load -= prevValue.getSize();
-            lruQueue.remove(prevValue.node);
+        // If we already contain key, ignore
+        if (data.containsKey(key)) {
+            lock.unlock();
+            return false;
         }
 
         load += size;
@@ -60,6 +58,7 @@ public class LruCache implements Cache {
         data.put(key, node);
         lruQueue.pushTail(listNode);
         lock.unlock();
+        return true;
     }
 
     private void evict() {

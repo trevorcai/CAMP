@@ -30,7 +30,7 @@ public class ConcurrentLruCache implements Cache {
     }
 
     @Override
-    public String getIfPresent(String key) {
+    public String get(String key) {
         MapNode result = data.get(key);
         String value = null;
 
@@ -43,22 +43,11 @@ public class ConcurrentLruCache implements Cache {
         return value;
     }
 
-    /*
-    Places an element into the cache with unit cost/size ratio
-     */
-    public void put(String key, String value) {
-        put(key, value, value.length(), value.length());
-    }
-
     @Override
-    public void put(String key, String value, int cost, int size) {
+    public boolean putIfAbsent(String key, String value, int cost, int size) {
         // If previous value exists, remove it
-        MapNode prevValue = data.get(key);
-        if (prevValue != null) {
-            load.addAndGet(-1 * prevValue.getSize());
-            lock.lock();
-            lruQueue.remove(prevValue.node);
-            lock.unlock();
+        if (data.containsKey(key)) {
+            return false;
         }
 
         if (shouldDrain()) {
@@ -74,14 +63,13 @@ public class ConcurrentLruCache implements Cache {
             lock.unlock();
         }
 
-        // If we already contain a key, remove the previous value from queue
-        // and adjust the size usage
         ListNode<String> listNode = new ListNode<>(key);
         MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
 
         buffer.offer(new Action(AccessType.WRITE, listNode));
         bufSize.incrementAndGet();
+        return true;
     }
 
     /** Checks if buffer should be drained */

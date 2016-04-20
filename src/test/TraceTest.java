@@ -79,9 +79,9 @@ public class TraceTest {
 
         @Override
         public void run() {
-            String result = c.getIfPresent(key);
+            String result = c.get(key);
             if (result == null) {
-                c.put(key, "", cost, size);
+                c.putIfAbsent(key, "", cost, size);
 
                 missAttempt.incrementAndGet();
                 missCost.addAndGet(cost);
