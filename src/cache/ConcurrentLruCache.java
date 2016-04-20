@@ -28,7 +28,7 @@ public class ConcurrentLruCache implements Cache {
     private final ConcurrentLinkedQueue<Action> buffer;
     private AtomicInteger bufSize = new AtomicInteger(0);
     /** Tracks the status of the drain */
-    private boolean isActive = false;
+    private boolean drainActive = false;
     private final AtomicBoolean isEager = new AtomicBoolean(false);
     /** Pool on which to run the drain thread */
     private final ExecutorService pool;
@@ -62,15 +62,17 @@ public class ConcurrentLruCache implements Cache {
             return false;
         }
 
+        load.addAndGet(size);
+        evict();
+
         ListNode<String> listNode = new ListNode<>(key);
         MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
-        load.addAndGet(size);
 
         buffer.offer(new Action(AccessType.WRITE, listNode));
         bufSize.incrementAndGet();
 
-//        isEager.lazySet(true);
+        isEager.lazySet(true);
         asyncDrainIfNeeded();
         return true;
     }
@@ -87,7 +89,7 @@ public class ConcurrentLruCache implements Cache {
 
     /** Checks if buffer should be drained */
     private boolean shouldDrain() {
-        if (isActive) {
+        if (drainActive) {
             return false;
         } else if (isEager.get()) {
             return true;
@@ -102,7 +104,12 @@ public class ConcurrentLruCache implements Cache {
             return;
         }
 
-        isActive = true;
+        drain();
+        lock.unlock();
+    }
+
+    private void drain() {
+        drainActive = true;
         isEager.lazySet(false);
 
         // Drain elements according to number that was in the buffer originally
@@ -117,21 +124,30 @@ public class ConcurrentLruCache implements Cache {
             if (a.type == AccessType.READ) {
                 lruQueue.moveTail(a.node);
             } else if (a.type == AccessType.WRITE) {
-                evict();
                 lruQueue.pushTail(a.node);
             }
         }
 
-        isActive = false;
+        drainActive = false;
+    }
+
+    /** Evicts until properly sized. */
+    private void evict() {
+        if (!canAndShouldEvict() || !lock.tryLock()) {
+            return;
+        }
+
+        while (shouldEvict()) {
+            while (canAndShouldEvict()) {
+                evictOne();
+            }
+            if (shouldEvict()) {
+                drain();
+            }
+        }
         lock.unlock();
     }
 
-    /** Evicts until properly sized. Expects to hold lock. */
-    private void evict() {
-        while (load.intValue() > capacity) {
-            evictOne();
-        }
-    }
     /** Evicts an entry. Expects to hold lock. */
     private void evictOne() {
         ListNode<String> listNode = lruQueue.popHead();
@@ -146,6 +162,14 @@ public class ConcurrentLruCache implements Cache {
             load.addAndGet(-1 * node.getSize());
             data.remove(key);
         }
+    }
+
+    private boolean canAndShouldEvict() {
+        return shouldEvict() && !lruQueue.isEmpty();
+    }
+
+    private boolean shouldEvict() {
+        return load.intValue() > capacity;
     }
 
     private enum AccessType {
