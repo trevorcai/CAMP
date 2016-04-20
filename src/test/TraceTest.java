@@ -99,5 +99,6 @@ public class TraceTest {
         test.run();
         test.await();
         test.printResults();
+        cache.shutDown();
     }
 }

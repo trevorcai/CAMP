@@ -72,6 +72,9 @@ public class ConcurrentLruCache implements Cache {
         return true;
     }
 
+    public void shutDown() {
+    }
+
     /** Checks if buffer should be drained */
     private boolean shouldDrain() {
         return bufSize.intValue() > DRAIN_THRESHOLD;
