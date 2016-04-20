@@ -58,17 +58,10 @@ public class ConcurrentLruCache implements Cache {
             return false;
         }
 
-        if (shouldDrain()) {
-            tryDrain();
-        }
-        int newLoad = load.addAndGet(size);
-        if (newLoad > capacity) {
-            evict();
-        }
-
         ListNode<String> listNode = new ListNode<>(key);
         MapNode node = new MapNode(value, cost, size, listNode);
         data.put(key, node);
+        load.addAndGet(size);
 
         buffer.offer(new Action(AccessType.WRITE, listNode));
         bufSize.incrementAndGet();
@@ -116,6 +109,7 @@ public class ConcurrentLruCache implements Cache {
             if (a.type == AccessType.READ) {
                 lruQueue.moveTail(a.node);
             } else if (a.type == AccessType.WRITE) {
+                evict();
                 lruQueue.pushTail(a.node);
             }
         }
@@ -126,11 +120,9 @@ public class ConcurrentLruCache implements Cache {
 
     /** Evicts until properly sized. Expects to hold lock. */
     private void evict() {
-        lock.lock();
         while (load.intValue() > capacity) {
             evictOne();
         }
-        lock.unlock();
     }
     /** Evicts an entry. Expects to hold lock. */
     private void evictOne() {
