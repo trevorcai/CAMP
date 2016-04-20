@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -25,6 +26,7 @@ public class ConcurrentLruCache implements Cache {
     /** Amount of data currently in Cache */
     private AtomicInteger load = new AtomicInteger(0);
     private boolean isActive = false;
+    private final AtomicBoolean isEager = new AtomicBoolean(false);
 
     /** Tracks the status of the drain */
     private final ExecutorService pool;
@@ -66,6 +68,7 @@ public class ConcurrentLruCache implements Cache {
         buffer.offer(new Action(AccessType.WRITE, listNode));
         bufSize.incrementAndGet();
 
+//        isEager.lazySet(true);
         asyncDrainIfNeeded();
         return true;
     }
@@ -84,6 +87,8 @@ public class ConcurrentLruCache implements Cache {
     private boolean shouldDrain() {
         if (isActive) {
             return false;
+        } else if (isEager.get()) {
+            return true;
         }
         return bufSize.intValue() > DRAIN_THRESHOLD;
     }
@@ -96,6 +101,7 @@ public class ConcurrentLruCache implements Cache {
         }
 
         isActive = true;
+        isEager.lazySet(false);
 
         // Drain elements according to number that was in the buffer originally
         int toDrain = bufSize.intValue();
