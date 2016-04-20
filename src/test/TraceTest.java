@@ -2,6 +2,7 @@ package test;
 
 import cache.Cache;
 import cache.CampCache;
+import cache.ConcurrentLruCache;
 import cache.LruCache;
 
 import java.io.BufferedReader;
@@ -37,7 +38,7 @@ public class TraceTest {
             while ((line = br.readLine()) != null) {
                 String[] splits = line.split(",");
                 int size = Integer.parseInt(splits[2]);
-                int cost = Integer.parseInt(splits[3]);
+                int cost = Integer.parseInt(splits[3]) * 8400;
                 pool.execute(new Request(splits[1], size, cost));
             }
             br.close();
@@ -93,7 +94,7 @@ public class TraceTest {
 
     public static void main(String[] args) {
         int numCores = Integer.parseInt(args[0]);
-        Cache cache = new CampCache(200000000);
+        Cache cache = new ConcurrentLruCache(200000000);
         TraceTest test = new TraceTest(cache, args[1], numCores);
         System.out.println("Starting test...");
         test.run();
