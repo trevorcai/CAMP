@@ -3,23 +3,23 @@ package cache;
 /* This class is NOT thread-safe! Any concurrent accesses must be controlled by
    external synchronization.
  */
-public class DoublyLinkedList<E> {
-    private ListNode<E> head, tail;
+public class DoublyLinkedList<T extends ListNode<T>> {
+    private T head, tail;
 
     public DoublyLinkedList() {
         head = null;
         tail = null;
     }
 
-    public ListNode<E> peekHead() {
+    public T peekHead() {
         return head;
     }
 
-    public ListNode<E> popHead() {
+    public T popHead() {
         if (head == null) {
             return null;
         }
-        ListNode<E> prevHead = head;
+        T prevHead = head;
         head = prevHead.next;
         if (head != null) {
             head.prev = null;
@@ -31,8 +31,8 @@ public class DoublyLinkedList<E> {
         return prevHead;
     }
 
-    public void pushTail(final ListNode<E> e) {
-        ListNode<E> prevTail = tail;
+    public void pushTail(final T e) {
+        T prevTail = tail;
         tail = e;
 
         e.prev = prevTail;
@@ -44,9 +44,9 @@ public class DoublyLinkedList<E> {
         }
     }
 
-    public void remove(final ListNode<E> e) {
-        ListNode<E> previous = e.prev;
-        ListNode<E> next = e.next;
+    public void remove(final T e) {
+        T previous = e.prev;
+        T next = e.next;
 
         if (previous != null) {
             previous.next = next;
@@ -63,7 +63,7 @@ public class DoublyLinkedList<E> {
         }
     }
 
-    public void moveTail(final ListNode<E> e) {
+    public void moveTail(final T e) {
         // If already at end, don't bother with extra ops
         if (e == tail) {
             return;
@@ -72,7 +72,7 @@ public class DoublyLinkedList<E> {
         pushTail(e);
     }
 
-    public boolean isHead(final ListNode<E> e) {
+    public boolean isHead(final T e) {
         return (e == head);
     }
 
@@ -82,47 +82,15 @@ public class DoublyLinkedList<E> {
 }
 
 /* Struct-like construction of Nodes within List */
-class ListNode<T> implements Comparable<ListNode<T>> {
-    public T value;
-    private int ordering;
-    ListNode<T> prev, next;
-    private boolean evicted = false;
+abstract class ListNode<T extends ListNode<T>> {
+    T prev, next;
 
-    public ListNode(T value) {
-        this(value, 0);
-    }
-
-    public ListNode(T value, int ordering) {
-        this.value = value;
-        this.ordering = ordering;
+    public ListNode() {
         this.prev = null;
         this.next = null;
     }
 
-    public int getOrdering() {
-        return ordering;
-    }
-
-    public void setOrdering(int ordering) {
-        this.ordering = ordering;
-    }
-
-    @Override
-    public int compareTo(ListNode<T> other) {
-        if (this.ordering < other.ordering) {
-            return -1;
-        } else if (this.ordering == other.ordering){
-            return 0;
-        } else {
-            return 1;
-        }
-    }
-
-    public boolean isEvicted() {
-        return evicted;
-    }
-
-    public void setEvicted() {
-        evicted = true;
+    public boolean isValid() {
+        return (prev != null) || (next != null);
     }
 }

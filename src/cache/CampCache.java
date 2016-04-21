@@ -1,6 +1,5 @@
 package cache;
 
-import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -16,8 +15,8 @@ public class CampCache implements Cache {
     private static final int RANGE = MAX_PRIORITY - MIN_PRIORITY + 1;
 
     private final Map<String, MapNode> data = new HashMap<>();
-    private final DoublyLinkedList<String>[] lruQueues;
-    private final PriorityQueue<ListNode<String>> heap = new PriorityQueue<>();
+    private final DoublyLinkedList<MapNode>[] lruQueues;
+    private final PriorityQueue<MapNode> heap = new PriorityQueue<>();
 
     private final Lock lock = new ReentrantLock();
 
@@ -26,14 +25,14 @@ public class CampCache implements Cache {
 
     private final int precision;
 
+    @SuppressWarnings("unchecked")
     public CampCache(int capacity, int precision) {
         this.capacity = capacity;
         this.precision = precision;
         load = 0;
 
         // Get around restrictions on Arrays of Java Generics
-        lruQueues =(DoublyLinkedList<String>[]) Array.newInstance(
-                DoublyLinkedList.class, RANGE);
+        lruQueues = new DoublyLinkedList[RANGE];
         for (int i = 0; i < RANGE; i++) {
             lruQueues[i] = new DoublyLinkedList<>();
         }
@@ -52,7 +51,7 @@ public class CampCache implements Cache {
         lock.unlock();
 
         if (result != null) {
-            return result.value;
+            return result.getValue();
         } else {
             return null;
         }
@@ -72,8 +71,7 @@ public class CampCache implements Cache {
             evict();
         }
 
-        ListNode<String> listNode = new ListNode<>(key);
-        MapNode node = new MapNode(value, cost, size, listNode);
+        MapNode node = new MapNode(key, value, cost, size);
         data.put(key, node);
         push(node);
         lock.unlock();
@@ -86,19 +84,16 @@ public class CampCache implements Cache {
 
     private void evict() {
         // Get the top of the Heap
-        ListNode<String> listNode = heap.poll();
-        if (listNode == null) {
+        MapNode node = heap.poll();
+        if (node == null) {
             return;
         }
 
-        String key = listNode.value;
-        MapNode node = data.get(key);
-        data.remove(key);
-
+        data.remove(node.getKey());
         load -= node.getSize();
 
-        int index = calculatePriority(node.cost, node.getSize());
-        lruQueues[index].remove(listNode);
+        int index = calculatePriority(node.getCost(), node.getSize());
+        lruQueues[index].remove(node);
         if (!lruQueues[index].isEmpty()) {
             heap.offer(lruQueues[index].peekHead());
         }
@@ -111,13 +106,13 @@ public class CampCache implements Cache {
         }
 
         load += node.getSize();
-        int index = calculatePriority(node.cost, node.getSize());
+        int index = calculatePriority(node.getCost(), node.getSize());
         boolean isEmpty = lruQueues[index].isEmpty();
 
         int inflated = getBasePriority() + index;
-        node.node.setOrdering(inflated);
+        node.setOrdering(inflated);
 
-        lruQueues[index].pushTail(node.node);
+        lruQueues[index].pushTail(node);
         if (isEmpty) {
             heap.offer(lruQueues[index].peekHead());
         }
@@ -128,19 +123,19 @@ public class CampCache implements Cache {
             return;
         }
 
-        int index = calculatePriority(node.cost, node.getSize());
-        boolean wasHead = lruQueues[index].isHead(node.node);
+        int index = calculatePriority(node.getCost(), node.getSize());
+        boolean wasHead = lruQueues[index].isHead(node);
 
-        lruQueues[index].remove(node.node);
+        lruQueues[index].remove(node);
         boolean wasEmpty = lruQueues[index].isEmpty();
         if (wasHead) {
-            heap.remove(node.node);
+            heap.remove(node);
             if (!wasEmpty) {
                 heap.offer(lruQueues[index].peekHead());
             }
         }
-        node.node.setOrdering(getBasePriority() + index);
-        lruQueues[index].pushTail(node.node);
+        node.setOrdering(getBasePriority() + index);
+        lruQueues[index].pushTail(node);
         // NOTE: wasEmpty implies wasHead. This could be simplified
         if (wasHead && wasEmpty) {
             heap.offer(lruQueues[index].peekHead());

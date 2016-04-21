@@ -7,7 +7,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class LruCache implements Cache {
     private final Map<String, MapNode> data = new HashMap<>();
-    private final DoublyLinkedList<String> lruQueue = new DoublyLinkedList<>();
+    private final DoublyLinkedList<MapNode> lruQueue = new DoublyLinkedList<>();
 
     private final Lock lock = new ReentrantLock();
 
@@ -25,18 +25,11 @@ public class LruCache implements Cache {
         MapNode result = data.get(key);
         String value = null;
         if (result != null) {
-            lruQueue.moveTail(result.node);
-            value = result.value;
+            lruQueue.moveTail(result);
+            value = result.getValue();
         }
         lock.unlock();
         return value;
-    }
-
-    /*
-    Places an element into the cache with unit cost/size ratio
-     */
-    public void put(String key, String value) {
-        putIfAbsent(key, value, value.length(), value.length());
     }
 
     @Override
@@ -53,10 +46,9 @@ public class LruCache implements Cache {
             evict();
         }
 
-        ListNode<String> listNode = new ListNode<>(key);
-        MapNode node = new MapNode(value, cost, size, listNode);
+        MapNode node = new MapNode(key, value, cost, size);
         data.put(key, node);
-        lruQueue.pushTail(listNode);
+        lruQueue.pushTail(node);
         lock.unlock();
         return true;
     }
@@ -65,14 +57,12 @@ public class LruCache implements Cache {
     public void shutDown() {}
 
     private void evict() {
-        ListNode<String> listNode = lruQueue.popHead();
-        if (listNode == null) {
+        MapNode node = lruQueue.popHead();
+        if (node == null) {
             return;
         }
 
-        String key = listNode.value;
-        MapNode node = data.get(key);
         load -= node.getSize();
-        data.remove(key);
+        data.remove(node.getKey());
     }
 }

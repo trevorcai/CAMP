@@ -10,12 +10,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/* Design inspiration from ConcurrentLinkedHashMap */
 public class ConcurrentLruCache implements Cache {
     static final int DRAIN_THRESHOLD = 40;
 
     /** Information-storing data structures */
     private final Map<String, MapNode> data;
-    private final DoublyLinkedList<String> lruQueue = new DoublyLinkedList<>();
+    private final DoublyLinkedList<MapNode> lruQueue = new DoublyLinkedList<>();
 
     /** Lock controlling access to the above lruQueue */
     private final Lock lock = new ReentrantLock();
@@ -46,9 +47,9 @@ public class ConcurrentLruCache implements Cache {
         String value = null;
 
         if (result != null) {
-            buffer.offer(new Action(AccessType.READ, result.node));
+            buffer.offer(new Action(AccessType.READ, result));
             bufSize.incrementAndGet();
-            value = result.value;
+            value = result.getValue();
         }
 
         asyncDrainIfNeeded();
@@ -65,11 +66,10 @@ public class ConcurrentLruCache implements Cache {
         load.addAndGet(size);
         evict();
 
-        ListNode<String> listNode = new ListNode<>(key);
-        MapNode node = new MapNode(value, cost, size, listNode);
+        MapNode node = new MapNode(key, value, cost, size);
         data.put(key, node);
 
-        buffer.offer(new Action(AccessType.WRITE, listNode));
+        buffer.offer(new Action(AccessType.WRITE, node));
         bufSize.incrementAndGet();
 
         isEager.lazySet(true);
@@ -150,15 +150,14 @@ public class ConcurrentLruCache implements Cache {
 
     /** Evicts an entry. Expects to hold lock. */
     private void evictOne() {
-        ListNode<String> listNode = lruQueue.popHead();
-        if (listNode == null) {
+        MapNode node = lruQueue.popHead();
+        if (node == null) {
             return;
         }
 
-        listNode.setEvicted();
-        String key = listNode.value;
-        MapNode node = data.get(key);
-        if (node != null) {
+        node.setEvicted();
+        String key = node.getKey();
+        if (data.containsKey(key)) {
             load.addAndGet(-1 * node.getSize());
             data.remove(key);
         }
@@ -178,9 +177,9 @@ public class ConcurrentLruCache implements Cache {
 
     private class Action {
         public AccessType type;
-        public ListNode<String> node;
+        public MapNode node;
 
-        public Action(AccessType type, ListNode<String> node) {
+        public Action(AccessType type, MapNode node) {
             this.type = type;
             this.node = node;
         }
