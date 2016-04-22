@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /* Design inspiration from ConcurrentLinkedHashMap */
 public abstract class ConcurrentCache implements Cache {
-    static final int DRAIN_THRESHOLD = 40;
+    private static final int DRAIN_THRESHOLD = 40;
 
     /** Backing Map */
     final Map<String, MapNode> data;
@@ -22,11 +22,11 @@ public abstract class ConcurrentCache implements Cache {
 
     /** Amount of data currently in cache versus what's allowed */
     final int capacity;
-    AtomicInteger load = new AtomicInteger(0);
+    final AtomicInteger load = new AtomicInteger(0);
 
     /** Buffer and its counter */
     private final ConcurrentLinkedQueue<Action> buffer;
-    private AtomicInteger bufSize = new AtomicInteger(0);
+    private final AtomicInteger bufSize = new AtomicInteger(0);
     /** Tracks the status of the drain */
     private boolean drainActive = false;
     private final AtomicBoolean isEager = new AtomicBoolean(false);

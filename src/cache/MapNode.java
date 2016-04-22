@@ -49,6 +49,7 @@ class MapNode extends ListNode<MapNode> implements Comparable<MapNode> {
     }
 
     @Override
+    @SuppressWarnings("NullableProblems")
     public int compareTo(MapNode other) {
         if (this.ordering < other.ordering) {
             return -1;
