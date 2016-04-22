@@ -1,4 +1,7 @@
-package cache;
+package cache.concurrent;
+
+import cache.DoublyLinkedList;
+import cache.MapNode;
 
 public class ConcurrentLruCache extends ConcurrentCache {
     private final DoublyLinkedList<MapNode> lruQueue = new DoublyLinkedList<>();

@@ -1,4 +1,7 @@
-package cache;
+package cache.concurrent;
+
+import cache.Cache;
+import cache.MapNode;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

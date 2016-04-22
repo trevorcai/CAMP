@@ -1,7 +1,7 @@
 package cache;
 
 /* Struct-like construction of Nodes within Map */
-class MapNode extends ListNode<MapNode> implements Comparable<MapNode> {
+public class MapNode extends ListNode<MapNode> implements Comparable<MapNode> {
     private final String key, value;
     private final int cost, size;
     private int ordering = 0;

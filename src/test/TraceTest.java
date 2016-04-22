@@ -1,6 +1,7 @@
 package test;
 
-import cache.*;
+import cache.Cache;
+import cache.concurrent.ConcurrentLruCache;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
