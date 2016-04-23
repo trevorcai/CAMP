@@ -1,7 +1,7 @@
 package test;
 
 import cache.Cache;
-import cache.concurrent.ConcurrentLruCache;
+import cache.LruCache;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class TraceTest {
     private final Cache c;
+    private final int numThreads;
     private AtomicLong totalCost, missCost, totalAttempt, missAttempt;
     private final ExecutorService pool;
     private final ArrayList<Request> requests = new ArrayList<>();
@@ -22,6 +23,7 @@ public class TraceTest {
 
     public TraceTest(Cache c, String fileName, int numThreads) {
         this.c = c;
+        this.numThreads = numThreads;
         pool = Executors.newFixedThreadPool(numThreads);
         totalCost = new AtomicLong();
         missCost = new AtomicLong();
@@ -45,7 +47,10 @@ public class TraceTest {
 
     public void run() {
         startTime = System.nanoTime();
-        requests.forEach(pool::execute);
+        // To get a reasonable runtime, run through requests 20 times each
+        for (int i = 0; i < 20; i++) {
+            requests.forEach(pool::execute);
+        }
 
         pool.shutdown();
         try {
@@ -64,6 +69,15 @@ public class TraceTest {
         System.out.println("Time Elapsed: " + timeElapsed + "ms");
         System.out.println("Miss ratio: " + missRatio);
         System.out.println("Cost-Miss ratio: " + costMissRatio);
+    }
+
+    public void printResultsOneLine() {
+        double missRatio = missAttempt.doubleValue() / totalAttempt.longValue();
+        double costMissRatio = missCost.doubleValue() / totalCost.longValue();
+        float timeElapsed = (endTime - startTime) / 1000000;
+
+        System.out.println(numThreads + "," + missRatio + "," + costMissRatio +
+                "," + timeElapsed);
     }
 
     private class Request implements Runnable {
@@ -91,9 +105,8 @@ public class TraceTest {
     }
 
     public static void main(String[] args) {
-        int numCores = Integer.parseInt(args[0]);
-        Cache cache = new ConcurrentLruCache(200000000);
-        TraceTest test = new TraceTest(cache, args[1], numCores);
+        Cache cache = new LruCache(200000000);
+        TraceTest test = new TraceTest(cache, args[0], 1);
         System.out.println("Starting test...");
         test.run();
         test.printResults();
