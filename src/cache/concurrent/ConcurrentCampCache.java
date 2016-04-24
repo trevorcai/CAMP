@@ -45,7 +45,7 @@ public class ConcurrentCampCache extends ConcurrentCache {
 
     @Override
     void doRead(MapNode node) {
-        if (node == null) {
+        if (node == null || !node.isValid()) {
             return;
         }
 

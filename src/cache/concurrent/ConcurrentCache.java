@@ -6,18 +6,29 @@ import cache.admission.AdmissionPolicy;
 import cache.admission.IdlePolicy;
 
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /* Design inspiration from ConcurrentLinkedHashMap */
 public abstract class ConcurrentCache implements Cache {
-    private static final int DRAIN_THRESHOLD = 40;
+    /** Buffer thresholds. */
+    private static final int READ_THRESHOLD = 32;
+    private static final int READ_MAX_DRAIN = 2 * READ_THRESHOLD;
+    private static final int READ_BUFFER_SIZE = 4 * READ_MAX_DRAIN;
+
+    private static final int READ_MASK = READ_BUFFER_SIZE - 1;
+
+    /** The maximum number of write operations to perform per amortized drain. */
+    private static final int WRITE_MAX_DRAIN = 16;
 
     /** Backing Map */
     final Map<String, MapNode> data;
@@ -30,8 +41,11 @@ public abstract class ConcurrentCache implements Cache {
     final AtomicInteger load = new AtomicInteger(0);
 
     /** Buffer and its counter */
-    private final ConcurrentLinkedQueue<Action> buffer;
-    private final AtomicInteger bufSize = new AtomicInteger(0);
+    private final AtomicReference<MapNode>[] buffer;
+    private long bufferReadPointer = 0;
+    private final AtomicLong bufferWritePointer = new AtomicLong();
+    private final Queue<MapNode> writeBuffer;
+
     /** Tracks the status of the drain */
     private boolean drainActive = false;
     private final AtomicBoolean isEager = new AtomicBoolean(false);
@@ -47,7 +61,11 @@ public abstract class ConcurrentCache implements Cache {
         this.capacity = capacity;
         this.policy = policy;
         data = new ConcurrentHashMap<>(128, 0.75f, concurrency);
-        buffer = new ConcurrentLinkedQueue<>();
+        writeBuffer = new ConcurrentLinkedQueue<>();
+        buffer = new AtomicReference[READ_BUFFER_SIZE];
+        for (int i = 0; i < READ_BUFFER_SIZE; i++) {
+            buffer[i] = new AtomicReference<>();
+        }
         pool = Executors.newCachedThreadPool();
     }
 
@@ -62,8 +80,11 @@ public abstract class ConcurrentCache implements Cache {
             return null;
         }
 
-        buffer.offer(new Action(AccessType.READ, result));
-        bufSize.incrementAndGet();
+        long writePtr = bufferWritePointer.get();
+        int index = (int) writePtr & READ_MASK;
+        if (buffer[index].compareAndSet(null, result)) {
+            bufferWritePointer.incrementAndGet();
+        }
         asyncDrainIfNeeded();
         return result.getValue();
     }
@@ -80,10 +101,7 @@ public abstract class ConcurrentCache implements Cache {
         }
 
         policy.registerWrite(node);
-        load.addAndGet(size);
-        buffer.offer(new Action(AccessType.WRITE, node));
-        bufSize.incrementAndGet();
-
+        writeBuffer.offer(node);
         isEager.lazySet(true);
         asyncDrainIfNeeded();
         return true;
@@ -111,7 +129,10 @@ public abstract class ConcurrentCache implements Cache {
         } else if (isEager.get()) {
             return true;
         }
-        return bufSize.intValue() > DRAIN_THRESHOLD;
+
+        long toConsume = bufferWritePointer.get() - bufferReadPointer;
+
+        return toConsume > READ_THRESHOLD;
     }
 
     /** Tries to drain buffer, if someone else isn't already draining it */
@@ -126,40 +147,43 @@ public abstract class ConcurrentCache implements Cache {
     }
 
     void drain() {
+        drainReadBuffer();
+        drainWriteBuffer();
+    }
+
+    private void drainReadBuffer() {
+        int undrained = (int) (bufferWritePointer.get() - bufferReadPointer);
+        // Drain at most READ_MAX_DRAIN elements
+        int toDrain = (undrained < READ_MAX_DRAIN) ? undrained : READ_MAX_DRAIN;
+        for (int i = 0; i < toDrain; i++) {
+            int index = (int) bufferReadPointer & READ_MASK;
+            MapNode n = buffer[index].get();
+            // Shouldn't happen
+            if (n == null) {
+                break;
+            }
+
+            buffer[index].lazySet(null);
+            doRead(n);
+            bufferReadPointer++;
+        }
+    }
+
+    private void drainWriteBuffer() {
         drainActive = true;
         isEager.lazySet(false);
 
-        // Drain elements according to number that was in the buffer originally
-        int toDrain = bufSize.intValue();
-        bufSize.addAndGet(-1 * toDrain);
-        for(int i = 0; i < toDrain; i++) {
-            Action a = buffer.poll();
-            if (a.node.isEvicted()) {
-                continue;
+        for(int i = 0; i < WRITE_MAX_DRAIN; i++) {
+            MapNode n = writeBuffer.poll();
+            if (n == null) {
+                break;
             }
-            // For reads, don't bother doing anything if the node not in list
-            if (a.type == AccessType.READ) {
-                doRead(a.node);
-            } else if (a.type == AccessType.WRITE) {
-                evict();
-                doWrite(a.node);
-            }
+            load.addAndGet(n.getSize());
+            evict();
+            doWrite(n);
         }
 
         drainActive = false;
     }
 
-    private enum AccessType {
-        READ, WRITE
-    }
-
-    private class Action {
-        public AccessType type;
-        public MapNode node;
-
-        public Action(AccessType type, MapNode node) {
-            this.type = type;
-            this.node = node;
-        }
-    }
 }

@@ -17,7 +17,9 @@ public class ConcurrentLruCache extends ConcurrentCache {
 
     @Override
     void doRead(MapNode node) {
-        lruQueue.moveTail(node);
+        if (node.isValid()) {
+            lruQueue.moveTail(node);
+        }
     }
 
     @Override
