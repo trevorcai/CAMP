@@ -22,17 +22,12 @@ public class ConcurrentLruCache extends ConcurrentCache {
     /** Evicts until properly sized. */
     @Override
     void evict() {
-        if (!canAndShouldEvict() || !lock.tryLock()) {
+        if (!shouldEvict() || !lock.tryLock()) {
             return;
         }
 
         while (shouldEvict()) {
-            while (canAndShouldEvict()) {
-                evictOne();
-            }
-            if (shouldEvict()) {
-                drain();
-            }
+            evictOne();
         }
         lock.unlock();
     }
@@ -52,12 +47,8 @@ public class ConcurrentLruCache extends ConcurrentCache {
         }
     }
 
-    private boolean canAndShouldEvict() {
-        return shouldEvict() && !lruQueue.isEmpty();
-    }
-
     private boolean shouldEvict() {
-        return load.intValue() > capacity;
+        return (load.intValue() > capacity) && !lruQueue.isEmpty();
     }
 }
 

@@ -63,12 +63,10 @@ public abstract class ConcurrentCache implements Cache {
             return false;
         }
 
-        load.addAndGet(size);
-        evict();
-
         MapNode node = new MapNode(key, value, cost, size);
         data.put(key, node);
 
+        load.addAndGet(size);
         buffer.offer(new Action(AccessType.WRITE, node));
         bufSize.incrementAndGet();
 
@@ -129,6 +127,7 @@ public abstract class ConcurrentCache implements Cache {
             if (a.type == AccessType.READ) {
                 doRead(a.node);
             } else if (a.type == AccessType.WRITE) {
+                evict();
                 doWrite(a.node);
             }
         }

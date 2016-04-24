@@ -80,23 +80,12 @@ public class ConcurrentCampCache extends ConcurrentCache {
 
     @Override
     void evict() {
-        if (!canAndShouldEvict() || !lock.tryLock()) {
+        if (!shouldEvict() || !lock.tryLock()) {
             return;
         }
 
-        boolean flag = false;
         while (shouldEvict()) {
-            while (canAndShouldEvict()) {
-                flag = false;
-                evictOne();
-            }
-            if (shouldEvict()) {
-                if (flag) {
-                    break;
-                }
-                drain();
-                flag = true;
-            }
+            evictOne();
         }
         lock.unlock();
     }
@@ -121,12 +110,8 @@ public class ConcurrentCampCache extends ConcurrentCache {
         }
     }
 
-    private boolean canAndShouldEvict() {
-        return shouldEvict() && !heap.isEmpty();
-    }
-
     private boolean shouldEvict() {
-        return load.intValue() > capacity;
+        return (load.intValue() > capacity) && !heap.isEmpty();
     }
 
     /** Finds the rounded priority for a given cost and size */
