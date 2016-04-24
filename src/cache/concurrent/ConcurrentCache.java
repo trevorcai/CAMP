@@ -36,9 +36,9 @@ public abstract class ConcurrentCache implements Cache {
     /** Pool on which to run the drain thread */
     private final ExecutorService pool;
 
-    public ConcurrentCache(int capacity) {
+    public ConcurrentCache(int capacity, int concurrency) {
         this.capacity = capacity;
-        data = new ConcurrentHashMap<>();
+        data = new ConcurrentHashMap<>(128, 0.75f, concurrency);
         buffer = new ConcurrentLinkedQueue<>();
         pool = Executors.newCachedThreadPool();
     }

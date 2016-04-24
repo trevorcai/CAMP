@@ -34,14 +34,14 @@ public class PerformanceTest {
         }
         System.out.println("ConcurrentLruCache");
         for (int i = 0; i < 7; i++) {
-            Cache cache = new ConcurrentLruCache(200000000);
+            Cache cache = new ConcurrentLruCache(200000000, 1 << i);
             TraceTest test = new TraceTest(cache, fname, 1 << i);
             test.run();
             test.printResultsOneLine();
         }
         System.out.println("ConcurrentCampCache");
         for (int i = 0; i < 7; i++) {
-            Cache cache = new ConcurrentCampCache(200000000);
+            Cache cache = new ConcurrentCampCache(200000000, 1 << i);
             TraceTest test = new TraceTest(cache, fname, 1 << i);
             test.run();
             test.printResultsOneLine();

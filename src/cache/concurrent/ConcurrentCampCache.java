@@ -21,8 +21,8 @@ public class ConcurrentCampCache extends ConcurrentCache {
     private final int precision;
 
     @SuppressWarnings("unchecked")
-    public ConcurrentCampCache(int capacity, int precision) {
-        super(capacity);
+    public ConcurrentCampCache(int capacity, int concurrency, int precision) {
+        super(capacity, concurrency);
         this.precision = precision;
         lruQueues = new DoublyLinkedList[RANGE];
         for (int i = 0; i < RANGE; i++) {
@@ -31,8 +31,8 @@ public class ConcurrentCampCache extends ConcurrentCache {
         heap = new PriorityQueue<>();
     }
 
-    public ConcurrentCampCache(int capacity) {
-        this(capacity, 5);
+    public ConcurrentCampCache(int capacity, int concurrency) {
+        this(capacity, concurrency, 5);
     }
 
     @Override

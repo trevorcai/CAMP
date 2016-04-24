@@ -5,8 +5,8 @@ import cache.MapNode;
 
 public class ConcurrentLruCache extends ConcurrentCache {
     private final DoublyLinkedList<MapNode> lruQueue = new DoublyLinkedList<>();
-    public ConcurrentLruCache(int capacity) {
-        super(capacity);
+    public ConcurrentLruCache(int capacity, int concurrency) {
+        super(capacity, concurrency);
     }
 
     @Override

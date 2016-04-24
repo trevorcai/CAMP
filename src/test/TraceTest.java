@@ -10,12 +10,11 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class TraceTest {
     private final Cache c;
     private final int numThreads;
-    private AtomicLong totalCost, missCost, totalAttempt, missAttempt;
+    private long totalCost, missCost, totalAttempt, missAttempt;
     private final ExecutorService pool;
     private final ArrayList<Request> requests = new ArrayList<>();
 
@@ -25,10 +24,6 @@ public class TraceTest {
         this.c = c;
         this.numThreads = numThreads;
         pool = Executors.newFixedThreadPool(numThreads);
-        totalCost = new AtomicLong();
-        missCost = new AtomicLong();
-        totalAttempt = new AtomicLong();
-        missAttempt = new AtomicLong();
 
         try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
             String line;
@@ -60,11 +55,12 @@ public class TraceTest {
         }
         endTime = System.nanoTime();
         c.shutDown();
+        collectResults();
     }
 
     public void printResults() {
-        double missRatio = missAttempt.doubleValue() / totalAttempt.longValue();
-        double costMissRatio = missCost.doubleValue() / totalCost.longValue();
+        double missRatio = (double) missAttempt / totalAttempt;
+        double costMissRatio = (double) missCost / totalCost;
         float timeElapsed = (endTime - startTime) / 1000000;
         System.out.println("Time Elapsed: " + timeElapsed + "ms");
         System.out.println("Miss ratio: " + missRatio);
@@ -72,22 +68,40 @@ public class TraceTest {
     }
 
     public void printResultsOneLine() {
-        double missRatio = missAttempt.doubleValue() / totalAttempt.longValue();
-        double costMissRatio = missCost.doubleValue() / totalCost.longValue();
+        double missRatio = (double) missAttempt / totalAttempt;
+        double costMissRatio = (double) missCost / totalCost;
         float timeElapsed = (endTime - startTime) / 1000000;
 
         System.out.println(numThreads + "," + missRatio + "," + costMissRatio +
                 "," + timeElapsed);
     }
 
+    private void collectResults() {
+        totalCost = 0;
+        missCost = 0;
+        totalAttempt = 0;
+        missAttempt = 0;
+        for (Request r : requests) {
+            totalCost += r.totalCost;
+            missCost += r.missCost;
+            totalAttempt += r.totalAttempt;
+            missAttempt += r.missAttempt;
+        }
+    }
+
     private class Request implements Runnable {
         private final String key;
         private final int cost, size;
+        int totalCost, missCost, totalAttempt, missAttempt;
 
         public Request(String key, int size, int cost) {
             this.key = key;
             this.size = size;
             this.cost = cost;
+            totalCost = 0;
+            missCost = 0;
+            totalAttempt = 0;
+            missAttempt = 0;
         }
 
         @Override
@@ -96,11 +110,11 @@ public class TraceTest {
             if (result == null) {
                 c.putIfAbsent(key, "", cost, size);
 
-                missAttempt.incrementAndGet();
-                missCost.addAndGet(cost);
+                missAttempt++;
+                missCost += cost;
             }
-            totalAttempt.incrementAndGet();
-            totalCost.addAndGet(cost);
+            totalAttempt++;
+            totalCost += cost;
         }
     }
 
