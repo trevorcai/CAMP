@@ -58,13 +58,11 @@ public abstract class ConcurrentCache implements Cache {
 
     @Override
     public boolean putIfAbsent(String key, String value, int cost, int size) {
-        // If previous value exists, remove it
-        if (data.containsKey(key)) {
+        // Attempt put & if previous if previous not absent, abort
+        MapNode node = new MapNode(key, value, cost, size);
+        if (data.putIfAbsent(key, node) != null) {
             return false;
         }
-
-        MapNode node = new MapNode(key, value, cost, size);
-        data.put(key, node);
 
         load.addAndGet(size);
         buffer.offer(new Action(AccessType.WRITE, node));

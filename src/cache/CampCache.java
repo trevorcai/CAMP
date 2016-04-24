@@ -60,19 +60,16 @@ public class CampCache implements Cache {
     @Override
     public boolean putIfAbsent(String key, String value, int cost, int size) {
         lock.lock();
-        // If we already contain a key, remove the previous value from queue
-        // and adjust the size usage
-        if (data.containsKey(key)) {
+        MapNode node = new MapNode(key, value, cost, size);
+        if (data.putIfAbsent(key, node) != null) {
             lock.unlock();
             return false;
         }
-        // Evict if necessary
+
         while(load > capacity) {
             evict();
         }
 
-        MapNode node = new MapNode(key, value, cost, size);
-        data.put(key, node);
         push(node);
         lock.unlock();
 

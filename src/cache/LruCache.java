@@ -35,8 +35,9 @@ public class LruCache implements Cache {
     @Override
     public boolean putIfAbsent(String key, String value, int cost, int size) {
         lock.lock();
+        MapNode node = new MapNode(key, value, cost, size);
         // If we already contain key, ignore
-        if (data.containsKey(key)) {
+        if (data.putIfAbsent(key, node) != null) {
             lock.unlock();
             return false;
         }
@@ -46,8 +47,6 @@ public class LruCache implements Cache {
             evict();
         }
 
-        MapNode node = new MapNode(key, value, cost, size);
-        data.put(key, node);
         lruQueue.pushTail(node);
         lock.unlock();
         return true;
