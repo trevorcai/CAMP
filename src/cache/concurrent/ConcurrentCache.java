@@ -46,16 +46,14 @@ public abstract class ConcurrentCache implements Cache {
     @Override
     public String get(String key) {
         MapNode result = data.get(key);
-        String value = null;
-
-        if (result != null) {
-            buffer.offer(new Action(AccessType.READ, result));
-            bufSize.incrementAndGet();
-            value = result.getValue();
+        if (result == null) {
+            return null;
         }
 
+        buffer.offer(new Action(AccessType.READ, result));
+        bufSize.incrementAndGet();
         asyncDrainIfNeeded();
-        return value;
+        return result.getValue();
     }
 
     @Override
