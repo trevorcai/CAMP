@@ -28,7 +28,4 @@ public class ConcurrentFakeCache implements Cache {
         data.put(key, n);
         return true;
     }
-
-    @Override
-    public void shutDown() {}
 }

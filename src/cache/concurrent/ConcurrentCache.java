@@ -10,8 +10,6 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,8 +48,6 @@ public abstract class ConcurrentCache implements Cache {
     /** Tracks the status of the drain */
     private boolean drainActive = false;
     private final AtomicBoolean isEager = new AtomicBoolean(false);
-    /** Pool on which to run the drain thread */
-    private final ExecutorService pool;
 
     /** Admission Policy */
     private final AdmissionPolicy policy;
@@ -77,7 +73,6 @@ public abstract class ConcurrentCache implements Cache {
                 buffers[i][j] = new AtomicReference<>();
             }
         }
-        pool = Executors.newCachedThreadPool();
     }
 
     public ConcurrentCache(int capacity, int concurrency) {
@@ -102,7 +97,9 @@ public abstract class ConcurrentCache implements Cache {
         if (buffers[bufIndex][index].compareAndSet(null, result)) {
             bufferWritePointer[bufIndex].incrementAndGet();
         }
-        asyncDrainIfNeeded(bufIndex);
+        if (shouldDrain(bufIndex)) {
+            tryDrain();
+        }
         return result.getValue();
     }
 
@@ -120,12 +117,10 @@ public abstract class ConcurrentCache implements Cache {
         policy.registerWrite(node);
         writeBuffer.offer(node);
         isEager.lazySet(true);
-        asyncDrainIfNeeded();
+        if (shouldDrain(-1)) {
+            tryDrain();
+        }
         return true;
-    }
-
-    public void shutDown() {
-        pool.shutdownNow();
     }
 
     abstract void doRead(MapNode node);
@@ -134,16 +129,6 @@ public abstract class ConcurrentCache implements Cache {
 
     private int getBufferIndex() {
         return (int) Thread.currentThread().getId() & (numBuffers - 1);
-    }
-
-    private void asyncDrainIfNeeded() {
-        asyncDrainIfNeeded(-1);
-    }
-
-    private void asyncDrainIfNeeded(int idx) {
-        if (shouldDrain(idx)) {
-            pool.execute(this::tryDrain);
-        }
     }
 
     /** Checks if buffer should be drained */

@@ -76,9 +76,6 @@ public class CampCache implements Cache {
         return true;
     }
 
-    @Override
-    public void shutDown() {}
-
     private void evict() {
         // Get the top of the Heap
         MapNode node = heap.poll();

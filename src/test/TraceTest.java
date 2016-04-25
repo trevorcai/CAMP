@@ -54,7 +54,6 @@ public class TraceTest {
         long endTime = System.currentTimeMillis();
         elapsedTime = endTime - startTime;
 
-        c.shutDown();
         collectResults();
     }
 

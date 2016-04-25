@@ -52,9 +52,6 @@ public class LruCache implements Cache {
         return true;
     }
 
-    @Override
-    public void shutDown() {}
-
     private void evict() {
         MapNode node = lruQueue.popHead();
         if (node == null) {
