@@ -18,7 +18,7 @@ public class TraceTest {
     private final ExecutorService pool;
     private final ArrayList<Request> requests = new ArrayList<>();
 
-    private long startTime, endTime;
+    private long elapsedTime;
 
     public TraceTest(Cache c, String fileName, int numThreads) {
         this.c = c;
@@ -41,11 +41,9 @@ public class TraceTest {
     }
 
     public void run() {
-        startTime = System.nanoTime();
         // To get a reasonable runtime, run through requests 20 times each
-        for (int i = 0; i < 20; i++) {
-            requests.forEach(pool::execute);
-        }
+        long startTime = System.currentTimeMillis();
+        requests.forEach(pool::execute);
 
         pool.shutdown();
         try {
@@ -53,7 +51,9 @@ public class TraceTest {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        endTime = System.nanoTime();
+        long endTime = System.currentTimeMillis();
+        elapsedTime = endTime - startTime;
+
         c.shutDown();
         collectResults();
     }
@@ -61,8 +61,7 @@ public class TraceTest {
     public void printResults() {
         double missRatio = (double) missAttempt / totalAttempt;
         double costMissRatio = (double) missCost / totalCost;
-        float timeElapsed = (endTime - startTime) / 1000000;
-        System.out.println("Time Elapsed: " + timeElapsed + "ms");
+        System.out.println("Time Elapsed: " + elapsedTime + "ms");
         System.out.println("Miss ratio: " + missRatio);
         System.out.println("Cost-Miss ratio: " + costMissRatio);
     }
@@ -70,10 +69,9 @@ public class TraceTest {
     public void printResultsOneLine() {
         double missRatio = (double) missAttempt / totalAttempt;
         double costMissRatio = (double) missCost / totalCost;
-        float timeElapsed = (endTime - startTime) / 1000000;
 
         System.out.println(numThreads + "," + missRatio + "," + costMissRatio +
-                "," + timeElapsed);
+                "," + elapsedTime);
     }
 
     private void collectResults() {
@@ -92,7 +90,7 @@ public class TraceTest {
     private class Request implements Runnable {
         private final String key;
         private final int cost, size;
-        int totalCost, missCost, totalAttempt, missAttempt;
+        private long totalCost, missCost, totalAttempt, missAttempt;
 
         public Request(String key, int size, int cost) {
             this.key = key;
