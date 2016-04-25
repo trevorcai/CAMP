@@ -40,6 +40,10 @@ public class MapNode extends ListNode<MapNode> implements Comparable<MapNode> {
         return size;
     }
 
+    public double getCsr() {
+        return (double) cost / size;
+    }
+
     public int getOrdering() {
         return ordering;
     }

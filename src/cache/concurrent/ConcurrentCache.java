@@ -2,6 +2,8 @@ package cache.concurrent;
 
 import cache.Cache;
 import cache.MapNode;
+import cache.admission.AdmissionPolicy;
+import cache.admission.IdlePolicy;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,11 +38,21 @@ public abstract class ConcurrentCache implements Cache {
     /** Pool on which to run the drain thread */
     private final ExecutorService pool;
 
-    public ConcurrentCache(int capacity, int concurrency) {
+    /** Admission Policy */
+    private final AdmissionPolicy policy;
+
+    @SuppressWarnings("unchecked")
+    public ConcurrentCache(int capacity, int concurrency,
+                           AdmissionPolicy policy) {
         this.capacity = capacity;
+        this.policy = policy;
         data = new ConcurrentHashMap<>(128, 0.75f, concurrency);
         buffer = new ConcurrentLinkedQueue<>();
         pool = Executors.newCachedThreadPool();
+    }
+
+    public ConcurrentCache(int capacity, int concurrency) {
+        this(capacity, concurrency, IdlePolicy.getInstance());
     }
 
     @Override
@@ -60,10 +72,14 @@ public abstract class ConcurrentCache implements Cache {
     public boolean putIfAbsent(String key, String value, int cost, int size) {
         // Attempt put & if previous if previous not absent, abort
         MapNode node = new MapNode(key, value, cost, size);
+        if (!policy.shouldAdmit(node)) {
+            return false;
+        }
         if (data.putIfAbsent(key, node) != null) {
             return false;
         }
 
+        policy.registerWrite(node);
         load.addAndGet(size);
         buffer.offer(new Action(AccessType.WRITE, node));
         bufSize.incrementAndGet();

@@ -2,11 +2,17 @@ package cache.concurrent;
 
 import cache.DoublyLinkedList;
 import cache.MapNode;
+import cache.admission.AdmissionPolicy;
 
 public class ConcurrentLruCache extends ConcurrentCache {
     private final DoublyLinkedList<MapNode> lruQueue = new DoublyLinkedList<>();
     public ConcurrentLruCache(int capacity, int concurrency) {
         super(capacity, concurrency);
+    }
+
+    public ConcurrentLruCache(int capacity, int concurrency,
+                              AdmissionPolicy policy) {
+        super(capacity, concurrency, policy);
     }
 
     @Override

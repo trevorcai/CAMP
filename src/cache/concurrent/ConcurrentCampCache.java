@@ -2,6 +2,8 @@ package cache.concurrent;
 
 import cache.DoublyLinkedList;
 import cache.MapNode;
+import cache.admission.AdmissionPolicy;
+import cache.admission.IdlePolicy;
 
 import java.util.PriorityQueue;
 
@@ -21,8 +23,9 @@ public class ConcurrentCampCache extends ConcurrentCache {
     private final int precision;
 
     @SuppressWarnings("unchecked")
-    public ConcurrentCampCache(int capacity, int concurrency, int precision) {
-        super(capacity, concurrency);
+    public ConcurrentCampCache(int capacity, int concurrency, int precision,
+                               AdmissionPolicy policy) {
+        super(capacity, concurrency, policy);
         this.precision = precision;
         lruQueues = new DoublyLinkedList[RANGE];
         for (int i = 0; i < RANGE; i++) {
@@ -31,8 +34,13 @@ public class ConcurrentCampCache extends ConcurrentCache {
         heap = new PriorityQueue<>();
     }
 
+    public ConcurrentCampCache(int capacity, int concurrency,
+                              AdmissionPolicy policy) {
+        this(capacity, concurrency, 5, policy);
+    }
+
     public ConcurrentCampCache(int capacity, int concurrency) {
-        this(capacity, concurrency, 5);
+        this(capacity, concurrency, 5, IdlePolicy.getInstance());
     }
 
     @Override
