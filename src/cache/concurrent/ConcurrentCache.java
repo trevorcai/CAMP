@@ -60,7 +60,7 @@ public abstract class ConcurrentCache implements Cache {
                            AdmissionPolicy policy) {
         this.capacity = capacity;
         this.policy = policy;
-        data = new ConcurrentHashMap<>(128, 0.75f, concurrency);
+        data = new ConcurrentHashMap<>(200000, 0.5f, concurrency);
         writeBuffer = new ConcurrentLinkedQueue<>();
         numBuffers = ceilingNextPowerOfTwo(concurrency);
         buffers = new AtomicReference[numBuffers][READ_BUFFER_SIZE];

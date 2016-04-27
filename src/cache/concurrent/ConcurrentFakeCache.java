@@ -8,10 +8,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** "Fake" cache that never evicts. Backed by CHM */
 public class ConcurrentFakeCache implements Cache {
-    private final Map<String, MapNode> data = new ConcurrentHashMap<>();
+    private final Map<String, MapNode> data;
 
-    @SuppressWarnings("unused")
-    public ConcurrentFakeCache(int capacity) {}
+    public ConcurrentFakeCache(int concurrency) {
+        data = new ConcurrentHashMap<>(20000, 0.5f, concurrency);
+    }
 
     @Override
     public String get(String key) {

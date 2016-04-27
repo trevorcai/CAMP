@@ -33,7 +33,7 @@ public class PerformanceTest {
         System.out.println("ConcurrentFakeCache");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
-                Cache cache = new ConcurrentFakeCache(200000000);
+                Cache cache = new ConcurrentFakeCache(1 << i);
                 TraceTest test = new TraceTest(cache, fname, 1 << i);
                 test.run();
                 test.printResultsOneLine();
