@@ -62,13 +62,31 @@ public class PerformanceTest {
         System.out.println("ConcurrentLruCache");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
-                Cache cache = new ConcurrentLruCache(200000000, 1 << i, new RandomAdmission());
+                Cache cache = new ConcurrentLruCache(200000000, 1 << i);
                 TraceTest test = new TraceTest(cache, fname, 1 << i);
                 test.run();
                 test.printResultsOneLine();
             }
         }
         System.out.println("ConcurrentCampCache");
+        for (int i = 0; i < 7; i++) {
+            for (int j = 0; j < 25; j++) {
+                Cache cache = new ConcurrentCampCache(200000000, 1 << i);
+                TraceTest test = new TraceTest(cache, fname, 1 << i);
+                test.run();
+                test.printResultsOneLine();
+            }
+        }
+        System.out.println("ConcurrentLruCacheAP");
+        for (int i = 0; i < 7; i++) {
+            for (int j = 0; j < 25; j++) {
+                Cache cache = new ConcurrentLruCache(200000000, 1 << i, new RandomAdmission());
+                TraceTest test = new TraceTest(cache, fname, 1 << i);
+                test.run();
+                test.printResultsOneLine();
+            }
+        }
+        System.out.println("ConcurrentCampCacheAP");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
                 Cache cache = new ConcurrentCampCache(200000000, 1 << i, new RandomAdmission());
