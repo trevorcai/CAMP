@@ -5,8 +5,10 @@ import cache.CampCache;
 import cache.LruCache;
 import cache.admission.RandomAdmission;
 import cache.concurrent.ConcurrentCampCache;
-import cache.concurrent.ConcurrentFakeCache;
 import cache.concurrent.ConcurrentLruCache;
+import cache.fake.ConcurrentFakeCache;
+import cache.fake.IdleCache;
+import cache.fake.StripedFakeCache;
 
 public class PerformanceTest {
     public static void main(String[] args) {
@@ -30,10 +32,28 @@ public class PerformanceTest {
                 test.printResultsOneLine();
             }
         }
+        System.out.println("IdleCache");
+        for (int i = 0; i < 7; i++) {
+            for (int j = 0; j < 25; j++) {
+                Cache cache = new IdleCache();
+                TraceTest test = new TraceTest(cache, fname, 1 << i);
+                test.run();
+                test.printResultsOneLine();
+            }
+        }
         System.out.println("ConcurrentFakeCache");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
                 Cache cache = new ConcurrentFakeCache(1 << i);
+                TraceTest test = new TraceTest(cache, fname, 1 << i);
+                test.run();
+                test.printResultsOneLine();
+            }
+        }
+        System.out.println("StripedFakeCache");
+        for (int i = 0; i < 7; i++) {
+            for (int j = 0; j < 25; j++) {
+                Cache cache = new StripedFakeCache(1 << i);
                 TraceTest test = new TraceTest(cache, fname, 1 << i);
                 test.run();
                 test.printResultsOneLine();

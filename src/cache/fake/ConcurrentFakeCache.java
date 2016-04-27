@@ -1,4 +1,4 @@
-package cache.concurrent;
+package cache.fake;
 
 import cache.Cache;
 import cache.MapNode;
