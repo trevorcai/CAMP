@@ -19,8 +19,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /* Design inspiration from ConcurrentLinkedHashMap */
 public abstract class ConcurrentCache implements Cache {
-    private static final int DRAIN_THRESHOLD = 32;
-    private static final int READ_MAX_DRAIN = 2 * DRAIN_THRESHOLD;
+    /** Buffer thresholds and size. */
+    private static final int READ_THRESHOLD = 32;
+    private static final int READ_MAX_DRAIN = 2 * READ_THRESHOLD;
+    private static final int READ_BUFFER_SIZE = 4 * READ_MAX_DRAIN;
+    private static final int READ_MASK = READ_BUFFER_SIZE - 1;
+
+    /** The maximum number of write operations to perform per amortized drain. */
     private static final int WRITE_MAX_DRAIN = 16;
 
     /** Backing Map */
@@ -35,8 +40,9 @@ public abstract class ConcurrentCache implements Cache {
 
     /** Buffers and their counters */
     private final int numBuffers;
-    private final Queue<MapNode>[] buffers;
-    private final AtomicInteger[] bufSize;
+    private final AtomicReference<MapNode>[][] buffers;
+    private final long[] bufferReadPointer;
+    private final AtomicLong[] bufferWritePointer;
     private final Queue<MapNode> writeBuffer;
 
     /** Tracks the status of the drain */
@@ -55,14 +61,17 @@ public abstract class ConcurrentCache implements Cache {
         this.capacity = capacity;
         this.policy = policy;
         data = new ConcurrentHashMap<>(128, 0.75f, concurrency);
-
         writeBuffer = new ConcurrentLinkedQueue<>();
         numBuffers = ceilingNextPowerOfTwo(concurrency);
-        buffers = new ConcurrentLinkedQueue[numBuffers];
-        bufSize = new AtomicInteger[numBuffers];
+        buffers = new AtomicReference[numBuffers][READ_BUFFER_SIZE];
+        bufferReadPointer = new long[numBuffers];
+        bufferWritePointer = new AtomicLong[numBuffers];
         for (int i = 0; i < numBuffers; i++) {
-            bufSize[i] = new AtomicInteger();
-            buffers[i] = new ConcurrentLinkedQueue<>();
+            bufferReadPointer[i] = 0;
+            bufferWritePointer[i] = new AtomicLong();
+            for (int j = 0; j < READ_BUFFER_SIZE; j++) {
+                buffers[i][j] = new AtomicReference<>();
+            }
         }
     }
 
@@ -83,8 +92,11 @@ public abstract class ConcurrentCache implements Cache {
         }
 
         int bufIndex = getBufferIndex();
-        buffers[bufIndex].offer(result);
-        bufSize[bufIndex].incrementAndGet();
+        long writePtr = bufferWritePointer[bufIndex].get();
+        int index = (int) writePtr & READ_MASK;
+        if (buffers[bufIndex][index].compareAndSet(null, result)) {
+            bufferWritePointer[bufIndex].incrementAndGet();
+        }
         if (shouldDrain(bufIndex)) {
             tryDrain();
         }
@@ -128,8 +140,9 @@ public abstract class ConcurrentCache implements Cache {
         }
 
         if (idx > 0) {
-            long toConsume = bufSize[idx].get();
-            return toConsume > DRAIN_THRESHOLD;
+            long toConsume =
+                    bufferWritePointer[idx].get() - bufferReadPointer[idx];
+            return toConsume > READ_THRESHOLD;
         } else {
             return false;
         }
@@ -159,15 +172,21 @@ public abstract class ConcurrentCache implements Cache {
     }
 
     private void drainReadBuffer(int idx) {
+        int undrained =
+                (int) (bufferWritePointer[idx].get() - bufferReadPointer[idx]);
         // Drain at most READ_MAX_DRAIN elements
-        for (int i = 0; i < READ_MAX_DRAIN; i++) {
-            MapNode n = buffers[idx].poll();
+        int toDrain = (undrained < READ_MAX_DRAIN) ? undrained : READ_MAX_DRAIN;
+        for (int i = 0; i < toDrain; i++) {
+            int index = (int) bufferReadPointer[idx] & READ_MASK;
+            MapNode n = buffers[idx][index].get();
+            // Shouldn't happen
             if (n == null) {
                 break;
-            } else if (n.isEvicted()) {
-                continue;
             }
+
+            buffers[idx][index].lazySet(null);
             doRead(n);
+            bufferReadPointer[idx]++;
         }
     }
 
@@ -187,4 +206,5 @@ public abstract class ConcurrentCache implements Cache {
 
         drainActive = false;
     }
+
 }
