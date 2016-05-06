@@ -98,6 +98,11 @@ public class ConcurrentCampCache extends ConcurrentCache {
         lock.unlock();
     }
 
+    @Override
+    MapNode toEvict() {
+        return heap.peek();
+    }
+
     private void evictOne() {
         // Get the top of the Heap
         MapNode node = heap.poll();

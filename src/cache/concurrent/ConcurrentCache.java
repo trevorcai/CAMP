@@ -97,6 +97,8 @@ public abstract class ConcurrentCache implements Cache {
         if (buffers[bufIndex][index].compareAndSet(null, result)) {
             bufferWritePointer[bufIndex].incrementAndGet();
         }
+        policy.registerRead(result);
+
         if (shouldDrain(bufIndex)) {
             tryDrain();
         }
@@ -107,7 +109,7 @@ public abstract class ConcurrentCache implements Cache {
     public boolean putIfAbsent(String key, String value, int cost, int size) {
         // Attempt put & if previous if previous not absent, abort
         MapNode node = new MapNode(key, value, cost, size);
-        if (!policy.shouldAdmit(node)) {
+        if (!policy.shouldAdmit(node, toEvict())) {
             return false;
         }
         if (data.putIfAbsent(key, node) != null) {
@@ -126,6 +128,7 @@ public abstract class ConcurrentCache implements Cache {
     abstract void doRead(MapNode node);
     abstract void doWrite(MapNode node);
     abstract void evict();
+    abstract MapNode toEvict();
 
     private int getBufferIndex() {
         return (int) Thread.currentThread().getId() & (numBuffers - 1);

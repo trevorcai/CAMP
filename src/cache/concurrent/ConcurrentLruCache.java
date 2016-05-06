@@ -40,6 +40,11 @@ public class ConcurrentLruCache extends ConcurrentCache {
         lock.unlock();
     }
 
+    @Override
+    MapNode toEvict() {
+        return lruQueue.peekHead();
+    }
+
     /** Evicts an entry. Expects to hold lock. */
     private void evictOne() {
         MapNode node = lruQueue.popHead();

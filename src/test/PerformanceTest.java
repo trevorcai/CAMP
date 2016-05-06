@@ -3,7 +3,7 @@ package test;
 import cache.Cache;
 import cache.CampCache;
 import cache.LruCache;
-import cache.admission.RandomAdmission;
+import cache.admission.WeightedAdmission;
 import cache.concurrent.ConcurrentCampCache;
 import cache.concurrent.ConcurrentLruCache;
 import cache.fake.ConcurrentFakeCache;
@@ -80,7 +80,7 @@ public class PerformanceTest {
         System.out.println("ConcurrentLruCacheAP");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
-                Cache cache = new ConcurrentLruCache(200000000, 1 << i, new RandomAdmission());
+                Cache cache = new ConcurrentLruCache(200000000, 1 << i, new WeightedAdmission());
                 TraceTest test = new TraceTest(cache, fname, 1 << i);
                 test.run();
                 test.printResultsOneLine();
@@ -89,7 +89,7 @@ public class PerformanceTest {
         System.out.println("ConcurrentCampCacheAP");
         for (int i = 0; i < 7; i++) {
             for (int j = 0; j < 25; j++) {
-                Cache cache = new ConcurrentCampCache(200000000, 1 << i, new RandomAdmission());
+                Cache cache = new ConcurrentCampCache(200000000, 1 << i, new WeightedAdmission());
                 TraceTest test = new TraceTest(cache, fname, 1 << i);
                 test.run();
                 test.printResultsOneLine();

@@ -12,9 +12,12 @@ public class IdlePolicy implements AdmissionPolicy {
     }
 
     @Override
-    public boolean shouldAdmit(MapNode node) {
+    public boolean shouldAdmit(MapNode node, MapNode toEvict) {
         return true;
     }
+
+    @Override
+    public void registerRead(MapNode node) {}
 
     @Override
     public void registerWrite(MapNode node) {}
